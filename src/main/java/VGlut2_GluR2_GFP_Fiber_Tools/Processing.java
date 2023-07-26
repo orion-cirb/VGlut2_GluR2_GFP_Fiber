@@ -17,6 +17,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
 import loci.common.services.DependencyException;
@@ -32,10 +35,10 @@ import mcib3d.geom2.measurementsPopulation.MeasurePopulationColocalisation;
 import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.ImageInt;
 import mcib3d.image3d.ImageLabeller;
-import mcib3d.utils.ThreadUtil;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij2.CLIJ2;
 import org.apache.commons.io.FilenameUtils;
+import sun.awt.www.content.audio.aiff;
 
 
 
@@ -424,7 +427,6 @@ public class Processing {
    
    public Objects3DIntPopulation findVGlut2GluR2(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation gluR2Pop, ArrayList<VGlut2> VGlut2GluR2Syn) {
         Objects3DIntPopulation GluR2PopVGlut = new Objects3DIntPopulation();
-        int index = 0;
         for (Object3DInt vglut : vglut2Pop.getObjects3DInt()) {
             //System.out.println("Doing Vglut " + VGlut2Obj.getLabel());
             double gluR2Nb = 0;
@@ -441,65 +443,51 @@ public class Processing {
                 }
             }
             VGlut2GluR2Syn.add(new VGlut2(vglut));
-            VGlut2GluR2Syn.get(index).params.put("gluR2", gluR2Nb);
-            VGlut2GluR2Syn.get(index).params.put("gluR2Vol", gluR2Vol);
-            index++;
+            VGlut2GluR2Syn.get((int)vglut.getLabel() - 1).params.put("gluR2", gluR2Nb);
+            VGlut2GluR2Syn.get((int)vglut.getLabel() - 1).params.put("gluR2Vol", gluR2Vol);
         }
         GluR2PopVGlut.resetLabels();
         return(GluR2PopVGlut);
     }
-   
-   /**
-    * Find GluR2 associated to VGlut2/GFP multi threads
-    * @param gluR2Pop
-     * @param VGlut2Synapses 
-     * @return  
-    */
    
    public Objects3DIntPopulation findVGlut2GluR2Multi(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation gluR2Pop, ArrayList<VGlut2> VGlut2GluR2Syn) {
-        int nbObjects = vglut2Pop.getNbObjects();
+
+        // Create a thread pool to parallelize the distance calculation
+        int numThreads = Runtime.getRuntime().availableProcessors();
+        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
         Objects3DIntPopulation GluR2PopVGlut = new Objects3DIntPopulation();
-        {
-            // try parallelize
-            final AtomicInteger ai = new AtomicInteger(0);
-            int ncpu = (int) Math.ceil(ThreadUtil.getNbCpus());
-            Thread[] threads = ThreadUtil.createThreadArray(ncpu);
-            final int neach = (int) Math.ceil((double)nbObjects/(double)ncpu);
-            for (int iThread = 0; iThread < threads.length; iThread++) {
-                threads[iThread] = new Thread() {
-                    public void run() {
-                        for (int k = ai.getAndIncrement(); k < ncpu; k = ai.getAndIncrement()) {
-                            for (int n = neach*k; ((n < (neach*(k+1)) && (n < nbObjects))); n++) {            
-                                System.out.println("Doing parallel Vglut " + n);
-                                Object3DInt VGlut2Obj = vglut2Pop.getObjectByLabel(n);
-                                double gluR2Nb = 0;
-                                double gluR2Vol = 0;
-                                for (Object3DInt gluR2: gluR2Pop.getObjects3DInt()) {
-                                    if (gluR2.getType() == 0) {
-                                        double dist = new Measure2Distance(VGlut2Obj, gluR2).getValue(Measure2Distance.DIST_BB_UNIT);
-                                        if (dist <= distMax) {
-                                            gluR2Nb++;
-                                            gluR2Vol += new MeasureVolume(gluR2).getVolumeUnit();
-                                            GluR2PopVGlut.addObject(gluR2);
-                                            gluR2.setType(1);
-                                        }
-                                    }
-                                }
-                                VGlut2GluR2Syn.add(new VGlut2(VGlut2Obj));
-                                VGlut2GluR2Syn.get(VGlut2GluR2Syn.size()-1).params.put("gluR2", gluR2Nb);
-                                VGlut2GluR2Syn.get(VGlut2GluR2Syn.size()-1).params.put("gluR2Vol", gluR2Vol);
-                            }
+        // Iterate through each object in population 1 and find neighbors in population 2
+        for (Object3DInt VGlut2Obj : vglut2Pop.getObjects3DInt()) {
+            executor.execute(() -> {
+                double sumVolumeNeighbors = 0.0;
+                double numNeighbors = 0.0;
+                for (Object3DInt GluR2Obj : gluR2Pop.getObjects3DInt()) {
+                    if (GluR2Obj.getType() == 0) {
+                        double dist = new Measure2Distance(VGlut2Obj, GluR2Obj).getValue(Measure2Distance.DIST_BB_UNIT);
+                        if (dist <= distMax) {
+                            numNeighbors++;
+                            sumVolumeNeighbors += new MeasureVolume(GluR2Obj).getVolumeUnit();
+                            GluR2PopVGlut.addObject(GluR2Obj);
+                            GluR2Obj.setType(1);
                         }
                     }
-                };
-            } 
-            ThreadUtil.startAndJoin(threads);
-            threads = null;
+                }
+                VGlut2GluR2Syn.add(new VGlut2(VGlut2Obj));
+                VGlut2GluR2Syn.get((int)VGlut2Obj.getLabel() - 1).params.put("gluR2", numNeighbors);
+                VGlut2GluR2Syn.get((int)VGlut2Obj.getLabel() - 1).params.put("gluR2Vol", sumVolumeNeighbors);
+            });
+        }
+        // Shutdown the executor and wait for all threads to finish
+        executor.shutdown();
+        try {
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
         GluR2PopVGlut.resetLabels();
         return(GluR2PopVGlut);
     }
-   
+
     /**
      *
      * @param img
