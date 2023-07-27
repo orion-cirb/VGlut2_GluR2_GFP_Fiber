@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
@@ -443,12 +445,13 @@ public class Processing {
                 }
             }
             VGlut2GluR2Syn.add(new VGlut2(vglut));
-            VGlut2GluR2Syn.get((int)vglut.getLabel() - 1).params.put("gluR2", gluR2Nb);
-            VGlut2GluR2Syn.get((int)vglut.getLabel() - 1).params.put("gluR2Vol", gluR2Vol);
+            VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2", gluR2Nb);
+            VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2Vol", gluR2Vol);
         }
         GluR2PopVGlut.resetLabels();
         return(GluR2PopVGlut);
     }
+
    
    public Objects3DIntPopulation findVGlut2GluR2Multi(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation gluR2Pop, ArrayList<VGlut2> VGlut2GluR2Syn) {
 
@@ -458,13 +461,15 @@ public class Processing {
         Objects3DIntPopulation GluR2PopVGlut = new Objects3DIntPopulation();
         // Iterate through each object in population 1 and find neighbors in population 2
         for (Object3DInt VGlut2Obj : vglut2Pop.getObjects3DInt()) {
+            VGlut2GluR2Syn.add(new VGlut2(VGlut2Obj));
+            System.out.println("Doing VGlut2GluR2Syn " + VGlut2GluR2Syn.size());
             executor.execute(() -> {
                 double sumVolumeNeighbors = 0.0;
                 double numNeighbors = 0.0;
                 for (Object3DInt GluR2Obj : gluR2Pop.getObjects3DInt()) {
                     if (GluR2Obj.getType() == 0) {
                         double dist = new Measure2Distance(VGlut2Obj, GluR2Obj).getValue(Measure2Distance.DIST_BB_UNIT);
-                        if (dist <= distMax) {
+                        if (dist >= 0 && dist <= distMax) {
                             numNeighbors++;
                             sumVolumeNeighbors += new MeasureVolume(GluR2Obj).getVolumeUnit();
                             GluR2PopVGlut.addObject(GluR2Obj);
@@ -472,9 +477,8 @@ public class Processing {
                         }
                     }
                 }
-                VGlut2GluR2Syn.add(new VGlut2(VGlut2Obj));
-                VGlut2GluR2Syn.get((int)VGlut2Obj.getLabel() - 1).params.put("gluR2", numNeighbors);
-                VGlut2GluR2Syn.get((int)VGlut2Obj.getLabel() - 1).params.put("gluR2Vol", sumVolumeNeighbors);
+                VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2", numNeighbors);
+                VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2Vol", sumVolumeNeighbors);
             });
         }
         // Shutdown the executor and wait for all threads to finish
