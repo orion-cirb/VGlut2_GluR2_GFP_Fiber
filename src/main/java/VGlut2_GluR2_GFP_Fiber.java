@@ -133,13 +133,13 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 
                 // find GluR2 associated to VGlut2 
                 System.out.println("Finding GluR2 associated to VGlut2 ....");
-                Date t0 = new Date();
+                //Date t0 = new Date();
                 ArrayList<VGlut2> VGlut2GluR2Syn = new ArrayList<>();
                 Objects3DIntPopulation VGlut2GluR2Pop = tools.findVGlut2GluR2(vGlut2GFP, gluR2Pop, VGlut2GluR2Syn);
                 //Objects3DIntPopulation VGlut2GluR2Pop = tools.findVGlut2GluR2Multi(vGlut2GFP, gluR2Pop, VGlut2GluR2Syn);
-                Date t1 = new Date();
-                System.out.println("time : " + (t1.getTime() - t0.getTime()) + " ms : " + VGlut2GluR2Pop.getNbObjects() + " GluR2 associated to VGlut2");
-                
+                //Date t1 = new Date();
+                //System.out.println("time : " + (t1.getTime() - t0.getTime()) + " ms : " + VGlut2GluR2Pop.getNbObjects() + " GluR2 associated to VGlut2");
+                System.out.println(VGlut2GluR2Pop.getNbObjects() + " GluR2 associated to VGlut2");
                 // Save images
                 tools.saveImages(gfpPop, vGlut2GFP, VGlut2GluR2Pop, imgGFP, outDirResults, rootName);
                 tools.closeImages(imgGFP);
