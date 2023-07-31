@@ -17,11 +17,6 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.RecursiveAction;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
 import loci.common.services.DependencyException;
@@ -40,7 +35,6 @@ import mcib3d.image3d.ImageLabeller;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij2.CLIJ2;
 import org.apache.commons.io.FilenameUtils;
-import sun.awt.www.content.audio.aiff;
 
 
 
@@ -454,41 +448,25 @@ public class Processing {
 
    
    public Objects3DIntPopulation findVGlut2GluR2Multi(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation gluR2Pop, ArrayList<VGlut2> VGlut2GluR2Syn) {
-
-        // Create a thread pool to parallelize the distance calculation
-        int numThreads = Runtime.getRuntime().availableProcessors();
-        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
         Objects3DIntPopulation GluR2PopVGlut = new Objects3DIntPopulation();
-        // Iterate through each object in population 1 and find neighbors in population 2
-        for (Object3DInt VGlut2Obj : vglut2Pop.getObjects3DInt()) {
-            VGlut2GluR2Syn.add(new VGlut2(VGlut2Obj));
-            System.out.println("Doing VGlut2GluR2Syn " + VGlut2GluR2Syn.size());
-            executor.execute(() -> {
-                double sumVolumeNeighbors = 0.0;
-                double numNeighbors = 0.0;
-                for (Object3DInt GluR2Obj : gluR2Pop.getObjects3DInt()) {
-                    if (GluR2Obj.getType() == 0) {
-                        double dist = new Measure2Distance(VGlut2Obj, GluR2Obj).getValue(Measure2Distance.DIST_BB_UNIT);
-                        if (dist >= 0 && dist <= distMax) {
-                            numNeighbors++;
-                            sumVolumeNeighbors += new MeasureVolume(GluR2Obj).getVolumeUnit();
-                            GluR2PopVGlut.addObject(GluR2Obj);
-                            GluR2Obj.setType(1);
-                        }
-                    }
-                }
-                VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2", numNeighbors);
-                VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2Vol", sumVolumeNeighbors);
-            });
-        }
-        // Shutdown the executor and wait for all threads to finish
-        executor.shutdown();
-        try {
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        GluR2PopVGlut.resetLabels();
+        vglut2Pop.getObjects3DInt().parallelStream().forEach(vglutObj-> {
+            //System.out.print("Doing Vglut " + vglutObj.getLabel() + " ");
+            ArrayList<Double> sumVolumeNeighbors = new ArrayList<>();
+            AtomicInteger numNeighbors = new AtomicInteger(0);
+            gluR2Pop.getObjects3DInt().stream()
+                .filter(glur2Obj -> glur2Obj.getType() == 0)
+                .filter(glur2Obj -> new Measure2Distance(vglutObj, glur2Obj).getValue(Measure2Distance.DIST_BB_UNIT) <= distMax)
+                .forEach(glur2Obj -> {
+                    numNeighbors.getAndIncrement();
+                    sumVolumeNeighbors.add(new MeasureVolume(glur2Obj).getVolumeUnit());
+                    GluR2PopVGlut.addObject(glur2Obj);
+                    glur2Obj.setType(1);
+                });
+            //System.out.println(numNeighbors.get()+" Neighbors found");
+            VGlut2GluR2Syn.add(new VGlut2(vglutObj));
+            VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2", numNeighbors.doubleValue());
+            VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2Vol", sumVolumeNeighbors.stream().mapToDouble(Double::doubleValue).sum());
+        });
         return(GluR2PopVGlut);
     }
 
