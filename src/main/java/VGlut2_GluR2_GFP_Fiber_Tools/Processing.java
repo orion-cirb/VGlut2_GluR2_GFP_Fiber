@@ -2,6 +2,7 @@ package VGlut2_GluR2_GFP_Fiber_Tools;
 
 
 import VGlut2_GluR2_GFP_Fiber_Tools.StardistOrion.StarDist2D;
+import de.lighti.clipper.Path;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImagePlus;
@@ -15,14 +16,21 @@ import java.awt.Font;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import javax.swing.ImageIcon;
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
 import loci.formats.FormatException;
 import loci.formats.meta.IMetadata;
+import loci.plugins.BF;
+import loci.plugins.in.ImporterOptions;
 import loci.plugins.util.ImageProcessorReader;
 import mcib3d.geom2.Object3DInt;
 import mcib3d.geom2.Objects3DIntPopulation;
@@ -35,6 +43,8 @@ import mcib3d.image3d.ImageLabeller;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij2.CLIJ2;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang.ArrayUtils;
+import trainableSegmentation.WekaSegmentation;
 
 
 
@@ -60,6 +70,9 @@ public class Processing {
     public String GFPThMet = "Triangle";
     public Calibration cal = new Calibration();
     private double pixVol = 0;
+    
+    public boolean weka = false;
+    private boolean weka3D = true;
     
    // Stardist
     private final Object syncObject = new Object();
@@ -151,6 +164,38 @@ public class Processing {
         return(images);
     }
     
+    public void preprocessFile(String imageDir, String processDir, ArrayList<String> imageFiles, String[] channels, String[] chNames) throws Exception {
+        try {
+            for (String f : imageFiles) {
+                String rootName = FilenameUtils.getBaseName(f);
+                ImageProcessorReader reader = new ImageProcessorReader();
+                reader.setId(f);
+                ImporterOptions options = new ImporterOptions();
+                options.setColorMode(ImporterOptions.COLOR_MODE_GRAYSCALE);
+                options.setSplitChannels(true);
+                int indexCh = ArrayUtils.indexOf(channels, chNames[0]);
+                options.setCBegin(0, indexCh - 1);
+                options.setCEnd(0, indexCh - 1);
+                // Open VGlut2 channel
+                System.out.println(f);
+                ImagePlus imgVGlut2 = BF.openImagePlus(options)[0];
+                setCalibration(imgVGlut2);
+                IJ.saveAs(imgVGlut2, "Tiff", processDir+rootName+"-VGlut2.tif");
+                closeImages(imgVGlut2);
+                
+                // Open GFP channel
+                indexCh = ArrayUtils.indexOf(channels, chNames[2]);
+                options.setCBegin(0, indexCh - 1);
+                options.setCEnd(0, indexCh - 1);
+                ImagePlus imgGFP = BF.openImagePlus(options)[0];
+                setCalibration(imgGFP);
+                IJ.saveAs(imgGFP, "Tiff", processDir+rootName+"-GFP.tif");
+                closeImages(imgGFP);
+            }
+        }
+        catch (Exception e) { throw e; }
+    }
+    
     /**
      * Dialog
      */
@@ -166,6 +211,7 @@ public class Processing {
         for (int n = 0; n < chNames.length; n++) {
             gd.addChoice(chNames[n], channels, channels[n+1]);
         }
+        gd.addCheckbox("Use Weka segmentation : ", weka);
         gd.addMessage("GFP fiber threshold", Font.getFont("Monospace"), Color.blue);
         gd.addChoice("Method : ", thMethods, GFPThMet);
         gd.addMessage("Size filter", Font.getFont("Monospace"), Color.blue);
@@ -182,6 +228,7 @@ public class Processing {
         String[] chChoices = new String[chNames.length];
         for (int n = 0; n < chChoices.length; n++) 
             chChoices[n] = gd.getNextChoice();
+        weka = gd.getNextBoolean();
         GFPThMet = gd.getNextChoice();
         
         minDots = gd.getNextNumber();
@@ -445,7 +492,20 @@ public class Processing {
         GluR2PopVGlut.resetLabels();
         return(GluR2PopVGlut);
     }
-
+   
+    /**
+     * Find Weka model
+     */
+    public String findWekaModel(String imagesFolder, String model) {
+        File inDir = new File(imagesFolder);
+        List<String> modelFiles = Arrays.asList(inDir.list());
+        if (modelFiles == null) {
+            System.out.println("No Model found in "+imagesFolder);
+            return null;
+        }
+        Stream<String> wekaModel = modelFiles.stream().filter(f -> (f.endsWith(model+".model")));
+        return (wekaModel.count() == 0) ? null : wekaModel.toString();
+    }
    
    public Objects3DIntPopulation findVGlut2GluR2Multi(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation gluR2Pop, ArrayList<VGlut2> VGlut2GluR2Syn) {
         Objects3DIntPopulation GluR2PopVGlut = new Objects3DIntPopulation();
@@ -498,6 +558,33 @@ public class Processing {
         FileSaver ImgObjectsFile1 = new FileSaver(imgObjects);
         ImgObjectsFile1.saveAsTiff(outDir + imgName + ".tif");
         closeImages(imgObjects);
+    }
+    
+    
+    /** Do Weka on image
+     * 
+     * @param img
+     * @param dir
+     * @param channel
+     * @param model
+     * @return 
+     */
+    public Objects3DIntPopulation goWeka(ImagePlus img, String dir, String channel) {
+        String wekaModel = findWekaModel(dir, channel);
+        WekaSegmentation weka = new WekaSegmentation(weka3D);    
+        weka.setTrainingImage(img);
+        weka.loadClassifier(wekaModel);
+        weka.applyClassifier(false);
+        ImagePlus imgRes = weka.getClassifiedImage();
+        weka = null;
+        Objects3DIntPopulation pop = getPopFromImage(imgRes);  
+        // Remove small objects
+        if (channel.equals("GFP"))
+            sizeFilterPop(pop, minGFP, maxGFP);
+        else
+            sizeFilterPop(pop, minDots, maxDots);
+        System.out.println(pop.getNbObjects() + " " + channel + " objects found...");
+        return(pop);
     }
     
 }

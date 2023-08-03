@@ -127,6 +127,12 @@
 	  <version>28cdf186da</version>
 	  <type>jar</type>
 	 </dependency>
+	 <dependency>
+	  <groupId>sc.fiji</groupId>
+	  <artifactId>Trainable_Segmentation</artifactId>
+	  <version>3.3.5-SNAPSHOT</version>
+	  <type>jar</type>
+	 </dependency>
 	</dependencies>
         <repositories>
             <repository>
