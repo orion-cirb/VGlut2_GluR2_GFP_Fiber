@@ -4,6 +4,7 @@
  */
 
 import VGlut2_GluR2_GFP_Fiber_Tools.Processing;
+import VGlut2_GluR2_GFP_Fiber_Tools.QuantileBasedNormalization;
 import VGlut2_GluR2_GFP_Fiber_Tools.VGlut2;
 import ij.IJ;
 import ij.ImagePlus;
@@ -89,7 +90,7 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 procDir.mkdir();
                 // Normalise all images
                 IJ.showStatus("Normalisation starting...");
-                tools.preprocessFile(imageDir, processDir, imageFiles, channels, chNames);
+                tools.preprocessFile(processDir, imageFiles, channels, chNames);
                 QuantileBasedNormalization qbn = new QuantileBasedNormalization();
                 // VGlut2 normalization
                 qbn.run(processDir, imageFiles, "-VGlut2");
@@ -129,7 +130,7 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 int indexCh = ArrayUtils.indexOf(channels, chNames[0]);
                 ImagePlus imgVGlut2 = (tools.weka) ? IJ.openImage(processDir+rootName+"-VGlut2.tif") : BF.openImagePlus(options)[indexCh-1];
                 Objects3DIntPopulation vglut2Pop = (tools.weka) ? 
-                        tools.goWeka(imgVGlut2, imageDir, "VGlut2")
+                        tools.goWeka(imgVGlut2, imageDir, "-VGlut2")
                         : tools.findDoGObjects(imgVGlut2, tools.VGlut2sigma1, tools.VGlut2sigma2, tools.VGlut2ThMet, tools.minDots, tools.maxDots);
                 tools.closeImages(imgVGlut2);
                 
@@ -138,7 +139,7 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 indexCh = ArrayUtils.indexOf(channels, chNames[2]);
                 ImagePlus imgGFP = (tools.weka) ? IJ.openImage(processDir+rootName+"-GFP.tif") : BF.openImagePlus(options)[indexCh-1];
                 Objects3DIntPopulation gfpPop = (tools.weka) ?
-                        tools.goWeka(imgGFP, imageDir, "GFP")
+                        tools.goWeka(imgGFP, imageDir, "-GFP")
                         : tools.findDoGObjects(imgGFP, tools.GFPsigma1, tools.GFPsigma2, tools.GFPThMet, tools.minGFP, tools.maxGFP);
                 
                 // Find VGlut2 colocalized with GFP Fiber

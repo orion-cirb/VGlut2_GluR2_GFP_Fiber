@@ -1,3 +1,5 @@
+package VGlut2_GluR2_GFP_Fiber_Tools;
+
    /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
 /* Copyright 2006, 2007 Mark Longair */
@@ -36,6 +38,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
+import org.apache.commons.io.FilenameUtils;
 import util.BatchOpener;
 
 import vib.app.FileGroup;
@@ -598,10 +601,12 @@ public class QuantileBasedNormalization {
 	}
 
 
-	public void run(String dir, ArrayList<String> listFiles, String gfp) {
+	public void run(String dir, ArrayList<String> listFiles, String channel) {
 		FileGroup fg = new FileGroup("foo");
-		for( String file : listFiles) {
-                    fg.add(dir+file+gfp+".tif");
+		for( String f : listFiles) {
+                    String fileName = dir + FilenameUtils.getBaseName(f)+channel+".tif";
+                    System.out.println(fileName);
+                    fg.add(fileName);
                 }
 		int channelToUse = 0;	
 		int numberOfQuantiles = 256;

@@ -164,29 +164,27 @@ public class Processing {
         return(images);
     }
     
-    public void preprocessFile(String imageDir, String processDir, ArrayList<String> imageFiles, String[] channels, String[] chNames) throws Exception {
+    public void preprocessFile(String processDir, ArrayList<String> imageFiles, String[] chNames, String[] channels) throws Exception {
         try {
             for (String f : imageFiles) {
                 String rootName = FilenameUtils.getBaseName(f);
-                ImageProcessorReader reader = new ImageProcessorReader();
-                reader.setId(f);
                 ImporterOptions options = new ImporterOptions();
+                options.setId(f);
                 options.setColorMode(ImporterOptions.COLOR_MODE_GRAYSCALE);
                 options.setSplitChannels(true);
-                int indexCh = ArrayUtils.indexOf(channels, chNames[0]);
-                options.setCBegin(0, indexCh - 1);
-                options.setCEnd(0, indexCh - 1);
+                int indexCh = ArrayUtils.indexOf(chNames, channels[0]);
+                options.setCBegin(0, indexCh -1);
+                options.setCEnd(0, indexCh-1);
                 // Open VGlut2 channel
-                System.out.println(f);
                 ImagePlus imgVGlut2 = BF.openImagePlus(options)[0];
                 setCalibration(imgVGlut2);
                 IJ.saveAs(imgVGlut2, "Tiff", processDir+rootName+"-VGlut2.tif");
                 closeImages(imgVGlut2);
                 
                 // Open GFP channel
-                indexCh = ArrayUtils.indexOf(channels, chNames[2]);
-                options.setCBegin(0, indexCh - 1);
-                options.setCEnd(0, indexCh - 1);
+                indexCh = ArrayUtils.indexOf(chNames, channels[2]);
+                options.setCBegin(0, indexCh-1);
+                options.setCEnd(0, indexCh-1);
                 ImagePlus imgGFP = BF.openImagePlus(options)[0];
                 setCalibration(imgGFP);
                 IJ.saveAs(imgGFP, "Tiff", processDir+rootName+"-GFP.tif");
@@ -493,24 +491,28 @@ public class Processing {
         return(GluR2PopVGlut);
     }
    
-    /**
-     * Find Weka model
+     /**
+     * Find Weka model in images folder
      */
     public String findWekaModel(String imagesFolder, String model) {
         File inDir = new File(imagesFolder);
-        List<String> modelFiles = Arrays.asList(inDir.list());
-        if (modelFiles == null) {
-            System.out.println("No Model found in "+imagesFolder);
-            return null;
+        String[] files = inDir.list();
+        for (String f : files) {
+            // Find images with extension
+            String fileExt = FilenameUtils.getExtension(f);
+            if (fileExt.equals("model")) {
+                if (f.contains(model)) 
+                    return(imagesFolder + File.separator + f);
+            }
         }
-        Stream<String> wekaModel = modelFiles.stream().filter(f -> (f.endsWith(model+".model")));
-        return (wekaModel.count() == 0) ? null : wekaModel.toString();
+        return "";
     }
+    
    
    public Objects3DIntPopulation findVGlut2GluR2Multi(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation gluR2Pop, ArrayList<VGlut2> VGlut2GluR2Syn) {
         Objects3DIntPopulation GluR2PopVGlut = new Objects3DIntPopulation();
         vglut2Pop.getObjects3DInt().parallelStream().forEach(vglutObj-> {
-            //System.out.print("Doing Vglut " + vglutObj.getLabel() + " ");
+            System.out.print("Doing Vglut " + vglutObj.getLabel() + " ");
             ArrayList<Double> sumVolumeNeighbors = new ArrayList<>();
             AtomicInteger numNeighbors = new AtomicInteger(0);
             gluR2Pop.getObjects3DInt().stream()
@@ -522,7 +524,7 @@ public class Processing {
                     GluR2PopVGlut.addObject(glur2Obj);
                     glur2Obj.setType(1);
                 });
-            //System.out.println(numNeighbors.get()+" Neighbors found");
+            System.out.println(numNeighbors.get()+" Neighbors found");
             VGlut2GluR2Syn.add(new VGlut2(vglutObj));
             VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2", numNeighbors.doubleValue());
             VGlut2GluR2Syn.get(VGlut2GluR2Syn.size() - 1).params.put("gluR2Vol", sumVolumeNeighbors.stream().mapToDouble(Double::doubleValue).sum());
@@ -571,6 +573,10 @@ public class Processing {
      */
     public Objects3DIntPopulation goWeka(ImagePlus img, String dir, String channel) {
         String wekaModel = findWekaModel(dir, channel);
+        if(wekaModel.equals("")) {
+            return(null);
+        }
+        System.out.println("Model = "+new File(wekaModel).getName());
         WekaSegmentation weka = new WekaSegmentation(weka3D);    
         weka.setTrainingImage(img);
         weka.loadClassifier(wekaModel);
