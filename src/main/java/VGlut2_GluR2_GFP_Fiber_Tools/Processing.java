@@ -6,6 +6,7 @@ import de.lighti.clipper.Path;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImagePlus;
+import ij.WindowManager;
 import ij.io.FileSaver;
 import ij.measure.Calibration;
 import ij.plugin.Duplicator;
@@ -583,6 +584,8 @@ public class Processing {
         weka.applyClassifier(false);
         ImagePlus imgRes = weka.getClassifiedImage();
         weka = null;
+        if (WindowManager.getWindow("Log").isShowing())
+            WindowManager.getWindow("Log").dispose();
         Objects3DIntPopulation pop = getPopFromImage(imgRes);  
         // Remove small objects
         if (channel.equals("GFP"))
