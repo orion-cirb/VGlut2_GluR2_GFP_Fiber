@@ -431,8 +431,8 @@ public class Processing {
        System.out.println(pop.getNbObjects()+" GluR2 detections");
        
        // Filter objects
-       sizeFilterPop(pop, minDots, maxDots);
-       System.out.println(pop.getNbObjects()+ " GluR2 remaining after size filtering");
+       //sizeFilterPop(pop, minDots, maxDots);
+       //System.out.println(pop.getNbObjects()+ " GluR2 remaining after size filtering");
        return(pop);
     }  
    
