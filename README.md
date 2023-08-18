@@ -18,7 +18,7 @@
 
 * Detect VGluT2 dots with DoG filtering + Moments thresholding or Quantile Based Normalization + Weka
 * Detect GluR2 dots with Stardist
-* Detect GFP fibers with DoG filtering + Triangle thresholding or Quantile Based Normalization + Weka
+* Detect GFP fibers with DoG filtering + thresholding or Quantile Based Normalization + Weka
 * Colocalize VGluT2 dots with GFP fibers, label them as being GFP+ or GFP-
 * Associate each VGluT2 dot with all GluR2 dots closer than 200nm (one GluR2 can only be associated to one VGluT2)
 
