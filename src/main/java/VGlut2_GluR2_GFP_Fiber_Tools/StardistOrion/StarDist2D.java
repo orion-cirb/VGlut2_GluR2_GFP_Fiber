@@ -311,13 +311,11 @@ public class StarDist2D extends StarDist2DBase implements Command {
     }
     
     public void setParams(double percentileBottomVar, double percentileTopVar, double probThreshVar, double overlapThreshVar, String outPutType){
-
         percentileBottom = percentileBottomVar;
         percentileTop = percentileTopVar;
         probThresh = probThreshVar;
         nmsThresh = overlapThreshVar;
         outputType = outPutType;
-
     }
 
 }
