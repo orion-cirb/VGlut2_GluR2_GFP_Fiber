@@ -118,17 +118,16 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 
                 // Detect GFP fiber
                 System.out.println("- Analyzing " + chNames[2] + " GFP fiber channel -");
-                int indexCh = ArrayUtils.indexOf(channels, chNames[2]);
                 ImagePlus imgGFP = IJ.openImage(processDir+rootName+"-GFP.tif");
                 Objects3DIntPopulation gfpPop = tools.wekaSegmentation(imgGFP, imageDir, "GFP", tools.minGFPVol, tools.maxGFPVol);
                 System.out.println(gfpPop.getNbObjects() + " GFP objects found");
                 
                 // Detect VGlut2 dots
                 System.out.println("- Analyzing " + chNames[0] + " VGlut2 dots channel -");
-                indexCh = ArrayUtils.indexOf(channels, chNames[0]);
                 ImagePlus imgVGlut2 = IJ.openImage(processDir+rootName+"-VGlut2.tif");
                 Objects3DIntPopulation vglut2Pop = tools.wekaSegmentation(imgVGlut2, imageDir, "VGlut2", tools.minVGlut2Vol, tools.maxVGlut2Vol);
                 System.out.println(vglut2Pop.getNbObjects() + " VGlut2 objects found");
+                tools.closeImage(imgVGlut2);
                 
                 // Find VGlut2 dots colocalizing with GFP fiber
                 System.out.println("- Finding VGlut2 dots colocalizing with GFP fiber -");
@@ -137,14 +136,15 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 
                 // Detect GluR2 dots
                 System.out.println("- Analyzing " + chNames[1] + " GluR2 channel -");
-                indexCh = ArrayUtils.indexOf(channels, chNames[1]);
+                int indexCh = ArrayUtils.indexOf(channels, chNames[1]);
                 ImagePlus imgGluR2 = BF.openImagePlus(options)[indexCh];
                 Objects3DIntPopulation glur2Pop = tools.stardistDetection(imgGluR2);
                 System.out.println(glur2Pop.getNbObjects() + " GluR2 dots found");
+                tools.closeImage(imgGluR2);
                 
                 // Find GluR2 dots associated with VGlut2 dots
                 System.out.println("- Finding GluR2 dots associated with VGlut2 dots -");
-                Objects3DIntPopulation glur2Vglut2Pop = tools.findGluR2VGlut2(vglut2GfpPop, glur2Pop);
+                Objects3DIntPopulation glur2Vglut2Pop = tools.findGluR2VGlut2Multithreads(vglut2GfpPop, glur2Pop);
                 System.out.println(glur2Vglut2Pop.getNbObjects() + " GluR2 dots associated with VGlut2 dots");
                
                 // Write results
@@ -158,10 +158,7 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 
                 // Draw results
                 tools.drawResults(gfpPop, vglut2GfpPop, glur2Vglut2Pop, imgGFP, outDir, rootName);
-                
                 tools.closeImage(imgGFP);
-                tools.closeImage(imgVGlut2);
-                tools.closeImage(imgGluR2);
             }
 
            } catch (IOException | DependencyException | ServiceException | FormatException ex) {

@@ -16,6 +16,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
@@ -55,7 +56,7 @@ public class Tools {
     // Weka
     private boolean weka3D = true;
     // Size filtering
-    public double minVGlut2Vol = 0.007;
+    public double minVGlut2Vol = 0.01;
     public double maxVGlut2Vol = Double.MAX_VALUE;
     public double minGFPVol = 0.05;
     public double maxGFPVol = Double.MAX_VALUE;
@@ -292,8 +293,8 @@ public class Tools {
         gd.addNumericField("VGlut2/GluR2 max distance (µm): ", maxDist, 2);
         
         gd.addMessage("Image calibration", Font.getFont("Monospace"), Color.blue);
-        gd.addNumericField("XY calibration (µm): ", cal.pixelHeight, 3);
-        gd.addNumericField("Z calibration (µm): ", cal.pixelDepth, 3);
+        gd.addNumericField("XY calibration (µm): ", cal.pixelHeight, 4);
+        gd.addNumericField("Z calibration (µm): ", cal.pixelDepth, 4);
         gd.addHelp(helpUrl);
         gd.showDialog();
         
@@ -401,7 +402,7 @@ public class Tools {
             for (Object3DInt vglut: vglut2Pop.getObjects3DInt()) {
                 for (Object3DInt gfp: gfpPop.getObjects3DInt()) {
                     double colocVal = coloc.getValueObjectsPair(vglut, gfp);
-                    if (colocVal != 0) {
+                    if (colocVal > 0) {
                         vglut2GfpPop.addObject(vglut);
                         break;
                     }
@@ -437,55 +438,29 @@ public class Tools {
         closeImage(imgLabels);   
         return(pop);
     }
-   
-   
-    /**
-     * Find GluR2 dots associated with VGlut2 dots
-     */
-    public Objects3DIntPopulation findGluR2VGlut2(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation gluR2Pop) {
-        Objects3DIntPopulation glur2Vglut2Pop = new Objects3DIntPopulation();
-        for (Object3DInt vglut: vglut2Pop.getObjects3DInt()) {
-            double glur2Nb = 0;
-            double glur2Vol = 0;
-            for (Object3DInt glur: gluR2Pop.getObjects3DInt()) {
-                if (glur.getType() == 0) {
-                    double dist = new Measure2Distance(vglut, glur).getValue(Measure2Distance.DIST_BB_UNIT);
-                    if (dist <= maxDist) {
-                        glur2Nb++;
-                        glur2Vol += new MeasureVolume(glur).getVolumeUnit();
-                        glur.setType(1);
-                        glur2Vglut2Pop.addObject(glur);
-                    }
-                }
-            }
-            vglut.setComment(glur2Nb + "_" + glur2Vol);
-        }
-        glur2Vglut2Pop.resetLabels();
-        return(glur2Vglut2Pop);
-    }
     
 
     /**
      * Find GluR2 dots associated with VGlut2 dots (multithreads)
      */
-    /*public Objects3DIntPopulation findGluR2VGlut2Multithreads(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation glur2Pop) {
+    public Objects3DIntPopulation findGluR2VGlut2Multithreads(Objects3DIntPopulation vglut2Pop, Objects3DIntPopulation glur2Pop) {
         Objects3DIntPopulation glur2Vglut2Pop = new Objects3DIntPopulation();
-        vglut2Pop.getObjects3DInt().parallelStream().forEach(vglut-> {
-            ArrayList<Double> sumVolumeNeighbors = new ArrayList<>();
-            AtomicInteger numNeighbors = new AtomicInteger(0);
-            glur2Pop.getObjects3DInt().stream()
+        vglut2Pop.getObjects3DInt().stream().forEach(vglut-> {
+            AtomicInteger glur2Nb = new AtomicInteger(0);
+            ArrayList<Double> glur2Vols = new ArrayList<>();
+            glur2Pop.getObjects3DInt().parallelStream()
                 .filter(glur -> glur.getType() == 0)
                 .filter(glur -> new Measure2Distance(vglut, glur).getValue(Measure2Distance.DIST_BB_UNIT) <= maxDist)
                 .forEach(glur -> {
-                    numNeighbors.getAndIncrement();
-                    sumVolumeNeighbors.add(new MeasureVolume(glur).getVolumeUnit());
+                    glur2Nb.getAndIncrement();
+                    glur2Vols.add(new MeasureVolume(glur).getVolumeUnit());
                     glur.setType(1);
                     glur2Vglut2Pop.addObject(glur);
                 });
-            vglut.setComment(numNeighbors.doubleValue() + "_" + sumVolumeNeighbors.stream().mapToDouble(Double::doubleValue).sum());
+            vglut.setComment(glur2Nb.doubleValue() + "_" + glur2Vols.stream().mapToDouble(Double::doubleValue).sum());
         });
         return(glur2Vglut2Pop);
-    }*/
+    }
 
     
     /**
