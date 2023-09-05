@@ -30,4 +30,4 @@
 
 ### Version history
 
-Version 1 released on September 4, 2023.
+Version 1 released on September 5, 2023.
