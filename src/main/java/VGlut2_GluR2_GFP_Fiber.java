@@ -41,6 +41,7 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
         try {            
             String imageDir = IJ.getDirectory("Choose images directory")+File.separator;
             if (imageDir == null) {
+                tools.print("Specified directory not found");
                 return;
             }          
             
@@ -73,7 +74,7 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
             // Generate dialog box
             String[] chNames = tools.dialog(channels);
             if (chNames == null) {
-                IJ.showStatus("Plugin canceled");
+                tools.print("Plugin canceled");
                 return;
             }
             
@@ -160,12 +161,10 @@ public class VGlut2_GluR2_GFP_Fiber implements PlugIn {
                 tools.drawResults(gfpPop, vglut2GfpPop, glur2Vglut2Pop, imgGFP, outDir, rootName);
                 tools.closeImage(imgGFP);
             }
-
-           } catch (IOException | DependencyException | ServiceException | FormatException ex) {
+            System.out.println("--- All done! ---");
+        } catch (NullPointerException | IOException | DependencyException | ServiceException | FormatException ex) {
             Logger.getLogger(VGlut2_GluR2_GFP_Fiber.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (Exception ex) {
-            Logger.getLogger(VGlut2_GluR2_GFP_Fiber.class.getName()).log(Level.SEVERE, null, ex);
+            tools.print("Plugin aborted");
         }
-        System.out.println("--- All done! ---");
     }
 }

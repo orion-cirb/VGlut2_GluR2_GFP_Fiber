@@ -18,8 +18,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
-import loci.common.services.DependencyException;
-import loci.common.services.ServiceException;
 import loci.formats.FormatException;
 import loci.formats.meta.IMetadata;
 import loci.plugins.BF;
@@ -33,7 +31,6 @@ import mcib3d.geom2.measurementsPopulation.MeasurePopulationColocalisation;
 import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.ImageInt;
 import mcib3d.image3d.ImageLabeller;
-import net.haesleinhuepf.clij2.CLIJ2;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.ArrayUtils;
 import trainableSegmentation.WekaSegmentation;
@@ -46,8 +43,6 @@ public class Tools {
     public final ImageIcon icon = new ImageIcon(this.getClass().getResource("/Orion_icon.png"));
     private final String helpUrl = "https://github.com/orion-cirb/VGlut2_GluR2_GFP_Fiber";
     
-    private final CLIJ2 clij2 = CLIJ2.getInstance();
-    
     String[] chNames = {"VGlut2 dots: ", "GluR2 dots: ", "GFP fiber: "};
     public Calibration cal;
     private double pixVol;
@@ -56,9 +51,9 @@ public class Tools {
     // Weka
     private boolean weka3D = true;
     // Size filtering
-    public double minVGlut2Vol = 0.01;
+    public double minVGlut2Vol = 0.15;
     public double maxVGlut2Vol = Double.MAX_VALUE;
-    public double minGFPVol = 0.05;
+    public double minGFPVol = 0.25;
     public double maxGFPVol = Double.MAX_VALUE;
     
     // GluR2 dots detection with Stardist
@@ -72,7 +67,7 @@ public class Tools {
     private double stardistProbThresh = 0.4;
 
     // Distance max VGlut2 / GluR2
-    double maxDist = 0.2; 
+    double maxDist = 0.05; 
     
     
     /**
@@ -226,12 +221,8 @@ public class Tools {
     
     /**
      * Find channels name
-     * @throws loci.common.services.DependencyException
-     * @throws loci.common.services.ServiceException
-     * @throws loci.formats.FormatException
-     * @throws java.io.IOException
      */
-    public String[] findChannels(String imageName, IMetadata meta, ImageProcessorReader reader) throws DependencyException, ServiceException, FormatException, IOException {
+    public String[] findChannels(String imageName, IMetadata meta, ImageProcessorReader reader) {
         int chs = reader.getSizeC();
         String[] channels = new String[chs];
         String imageExt =  FilenameUtils.getExtension(imageName);
@@ -318,7 +309,7 @@ public class Tools {
     } 
     
     
-    public void preprocessFiles(ArrayList<String> imageFiles, String processDir, String[] chNames, String[] channels) throws Exception {
+    public void preprocessFiles(ArrayList<String> imageFiles, String processDir, String[] chNames, String[] channels) throws IOException, FormatException {
         try {
             for (String f : imageFiles) {
                 String rootName = FilenameUtils.getBaseName(f);
@@ -346,8 +337,8 @@ public class Tools {
                 IJ.saveAs(imgVGlut2, "Tiff", processDir+rootName+"-VGlut2.tif");
                 closeImage(imgVGlut2);
             }
-        } catch (Exception e) { 
-            throw e;
+        } catch (IOException | FormatException ex) { 
+            throw ex;
         }
     }
     
@@ -380,6 +371,7 @@ public class Tools {
       ImageInt labels = new ImageLabeller().getLabels(ImageHandler.wrap(img));
       labels.setCalibration(cal);
       Objects3DIntPopulation pop = new Objects3DIntPopulation(labels);
+      labels.closeImagePlus();
       return pop;
     }
     
@@ -417,7 +409,7 @@ public class Tools {
     /**
      * Apply StarDist 2D slice by slice
      */
-    public Objects3DIntPopulation stardistDetection(ImagePlus img) throws IOException{
+    public Objects3DIntPopulation stardistDetection(ImagePlus img) throws NullPointerException {
         ImagePlus imgIn = new Duplicator().run(img);
 
         // StarDist
@@ -487,7 +479,7 @@ public class Tools {
         for (Object3DInt gfpObj: gfpPop.getObjects3DInt())
             gfpObj.drawObject(imgFiber, 255);
         vglut2Pop.drawInImage(imgVGlut2);
-        for (Object3DInt gluR2Obj : glur2Pop.getObjects3DInt())
+        for (Object3DInt gluR2Obj: glur2Pop.getObjects3DInt())
             gluR2Obj.drawObject(imgGluR2, 255);
         
         ImagePlus[] imgColors = {imgGluR2.getImagePlus(), imgVGlut2.getImagePlus(), imgFiber.getImagePlus(), img};
@@ -495,6 +487,10 @@ public class Tools {
         imgObjects.setCalibration(img.getCalibration());
         FileSaver ImgObjectsFile1 = new FileSaver(imgObjects);
         ImgObjectsFile1.saveAsTiff(outDir + imgName + ".tif");
+        
+        imgFiber.closeImagePlus();
+        imgVGlut2.closeImagePlus();
+        imgGluR2.closeImagePlus();
         closeImage(imgObjects);
     }
     
