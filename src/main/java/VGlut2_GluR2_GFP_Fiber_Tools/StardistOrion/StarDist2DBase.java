@@ -38,7 +38,7 @@ public abstract class StarDist2DBase {
     protected ImagePlus labelImage = null;
     protected int labelId = 0;
     protected long labelCount = 0;
-    protected static final int MAX_LABEL_ID = 65535;
+    protected static final int MAX_LABEL_ID = Integer.MAX_VALUE;
 
     // ---------
 

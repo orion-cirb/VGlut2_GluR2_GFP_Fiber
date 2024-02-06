@@ -241,7 +241,7 @@ public class StarDist2D extends StarDist2DBase implements Command {
 
     @Override
     protected ImagePlus createLabelImage() {
-        return IJ.createImage("Label Image", "16-bit black", (int)input.getWidth(), (int)input.getHeight(), 1, 1, (int)input.getFrames());
+        return IJ.createImage("Label Image", "32-bit black", (int)input.getWidth(), (int)input.getHeight(), 1, 1, (int)input.getFrames());
     }
 
 

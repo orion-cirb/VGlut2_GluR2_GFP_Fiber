@@ -139,7 +139,7 @@ public class StarDist2DNMS extends StarDist2DBase implements Command {
 
     @Override
     protected ImagePlus createLabelImage() {
-        return IJ.createImage("Label Image", "16-bit black", (int)prob.getWidth(), (int)prob.getHeight(), 1, 1, (int)prob.getFrames());
+        return IJ.createImage("Label Image", "32-bit black", (int)prob.getWidth(), (int)prob.getHeight(), 1, 1, (int)prob.getFrames());
     }
 
 
