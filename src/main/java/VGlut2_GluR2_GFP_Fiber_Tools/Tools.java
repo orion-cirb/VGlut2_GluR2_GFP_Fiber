@@ -5,6 +5,7 @@ import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+import ij.gui.WaitForUserDialog;
 import ij.io.FileSaver;
 import ij.measure.Calibration;
 import ij.plugin.Duplicator;
@@ -63,8 +64,8 @@ public class Tools {
     private final String stardistModel = "fociRNA-1.2.zip";
     private final double stardistPercentileBottom = 0.2;
     private final double stardistPercentileTop = 99.8;
-    private final double stardistOverlapThresh = 0.25;
     private double stardistProbThresh = 0.4;
+    private double stardistOverlapThresh = 0.25;
 
     // Distance max VGlut2 / GluR2
     double maxDist = 0.05; 
@@ -281,6 +282,7 @@ public class Tools {
         
         gd.addMessage("GluR2 detection", Font.getFont("Monospace"), Color.blue);
         gd.addNumericField("Stardist probability threshold: ", stardistProbThresh, 2);
+        gd.addNumericField("Stardist overlap threshold: ", stardistOverlapThresh, 2);
         gd.addNumericField("VGlut2/GluR2 max distance (µm): ", maxDist, 2);
         
         gd.addMessage("Image calibration", Font.getFont("Monospace"), Color.blue);
@@ -297,6 +299,7 @@ public class Tools {
         minGFPVol = gd.getNextNumber();
         
         stardistProbThresh = gd.getNextNumber();
+        stardistOverlapThresh = gd.getNextNumber();
         maxDist = gd.getNextNumber();
 
         cal.pixelHeight = cal.pixelWidth = gd.getNextNumber();
@@ -419,7 +422,6 @@ public class Tools {
         star.setParams(stardistPercentileBottom, stardistPercentileTop, stardistProbThresh, stardistOverlapThresh, stardistOutput);
         star.run();
 
-        // Label detections in 3D
         ImagePlus imgLabels = star.getLabelImagePlus();
         if (imgLabels.getNChannels() > 1) imgLabels.setDimensions(1, imgLabels.getNChannels(), 1);
         else if (imgLabels.getNFrames() > 1) imgLabels.setDimensions(1, imgLabels.getNFrames(), 1);
